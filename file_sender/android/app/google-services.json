@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "407839163935",
+    "project_id": "network-attendance",
+    "storage_bucket": "network-attendance.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:407839163935:android:6afdf4607b3bcbd0f3772a",
+        "android_client_info": {
+          "package_name": "com.example.file_sender"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDicLifZkAFsXUDeYlEhL9DGOoKfy-shBA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
