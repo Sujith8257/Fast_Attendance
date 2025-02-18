@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'student_list_screen.dart';
+import 'dart:async';
 
 class UploadCSVScreen extends StatefulWidget {
   @override
@@ -12,6 +14,37 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
   String? _filePath;
   bool _isUploading = false;
   String _serverResponse = "";
+  int _totalStudents = 0;
+  int _presentStudents = 0;
+  int _absentStudents = 0;
+  Timer? _statsTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStats();
+    // Refresh stats every 30 seconds
+    _statsTimer = Timer.periodic(Duration(seconds: 30), (timer) => _fetchStats());
+  }
+
+  Future<void> _fetchStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://10.2.8.97:5000/attendance_stats'),
+      );
+
+      if (response.statusCode == 200) {
+        final stats = json.decode(response.body);
+        setState(() {
+          _totalStudents = stats['total'];
+          _presentStudents = stats['present'];
+          _absentStudents = stats['absent'];
+        });
+      }
+    } catch (e) {
+      print('Error fetching stats: $e');
+    }
+  }
 
   Future<void> pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -38,7 +71,7 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.2.8.97:5000/upload_csv'), // Change this to your Flask server IP
+      Uri.parse('http://10.2.8.97:5000/upload_csv'),
     );
 
     request.files.add(
@@ -57,6 +90,9 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(jsonResponse['message'])),
       );
+      
+      // Refresh stats after successful upload
+      _fetchStats();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error uploading file")),
@@ -68,37 +104,263 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Upload CSV")),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: pickFile,
-              child: Text("Select CSV File"),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacementNamed(context, '/login');
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            "KARE FAST · ADMIN",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
             ),
-            if (_filePath != null)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text("Selected: ${_filePath!.split('/').last}"),
+          ),
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.blue[700]!, Colors.blue[500]!],
               ),
-            SizedBox(height: 10),
-            _isUploading
-                ? CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: uploadFile,
-                    child: Text("Upload"),
+            ),
+          ),
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.grey[100]!, Colors.grey[200]!],
+            ),
+          ),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        title: "Total",
+                        count: _totalStudents,
+                        color: Colors.blue,
+                        icon: Icons.people,
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          '/student_list',
+                          arguments: {
+                            'showPresent': false,
+                            'showAbsent': false,
+                          },
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: _StatCard(
+                        title: "Present",
+                        count: _presentStudents,
+                        color: Colors.green,
+                        icon: Icons.check_circle,
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          '/student_list',
+                          arguments: {
+                            'showPresent': true,
+                            'showAbsent': false,
+                          },
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: _StatCard(
+                        title: "Absent",
+                        count: _absentStudents,
+                        color: Colors.red,
+                        icon: Icons.cancel,
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          '/student_list',
+                          arguments: {
+                            'showPresent': false,
+                            'showAbsent': true,
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
+                Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
                   ),
-            SizedBox(height: 20),
-            if (_serverResponse.isNotEmpty)
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          "Upload Attendance Sheet",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: pickFile,
+                          icon: Icon(Icons.file_upload),
+                          label: Text("Select CSV File", style: TextStyle(color: Colors.white),),
+                        ),
+                        if (_filePath != null)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              "Selected: ${_filePath!.split('/').last}",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.blue),
+                            ),
+                          ),
+                        SizedBox(height: 10),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: _isUploading ? null : uploadFile,
+                          icon: _isUploading
+                              ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Icon(Icons.cloud_upload),
+                          label: Text(_isUploading ? "Uploading..." : "Upload", style: TextStyle(color: Colors.white),),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_serverResponse.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Card(
+                      elevation: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          _serverResponse,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _statsTimer?.cancel();
+    super.dispose();
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String title;
+  final int count;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _StatCard({
+    required this.title,
+    required this.count,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 12,
+      shadowColor: color.withOpacity(0.4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white,
+                color.withOpacity(0.1),
+              ],
+            ),
+          ),
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 32),
+              SizedBox(height: 8),
               Text(
-                "Server Response: $_serverResponse",
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700],
+                ),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-          ],
+              SizedBox(height: 4),
+              Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
