@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
+import 'config.dart';
 
 class UserScreen extends StatefulWidget {
   @override
@@ -37,7 +38,7 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
 
     try {
       final response = await http.get(
-        Uri.parse('http://10.2.8.97:5000/get_user/$uniqueId'),
+        Uri.parse('${Config.serverUrl}/get_user/$uniqueId'),
       ).timeout(Duration(seconds: 5));
 
       final jsonResponse = json.decode(response.body);
@@ -95,7 +96,7 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.2.8.97:5000/upload_unique_id/$uniqueId'),
+        Uri.parse('${Config.serverUrl}/upload_unique_id/$uniqueId'),
       ).timeout(Duration(seconds: 5));
 
       final jsonResponse = json.decode(response.body);

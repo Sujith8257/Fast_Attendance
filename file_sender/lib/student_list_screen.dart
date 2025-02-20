@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
+import 'config.dart';
 
 class StudentListScreen extends StatefulWidget {
   final bool showPresent;
@@ -67,7 +68,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://10.2.8.97:5000/students'),
+        Uri.parse('${Config.serverUrl}/students'),
       ).timeout(Duration(seconds: 5));
 
       if (response.statusCode == 200) {
@@ -116,7 +117,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://10.2.8.97:5000/search_students/$query'),
+        Uri.parse('${Config.serverUrl}/search_students/$query'),
       ).timeout(Duration(seconds: 5));
 
       if (response.statusCode == 200) {

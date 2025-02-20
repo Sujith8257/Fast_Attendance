@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'student_list_screen.dart';
 import 'dart:async';
+import 'config.dart';
 
 class UploadCSVScreen extends StatefulWidget {
   @override
@@ -18,6 +19,7 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
   int _presentStudents = 0;
   int _absentStudents = 0;
   Timer? _statsTimer;
+  final _urlController = TextEditingController();
 
   @override
   void initState() {
@@ -30,7 +32,7 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
   Future<void> _fetchStats() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.2.8.97:5000/attendance_stats'),
+        Uri.parse('${Config.serverUrl}/attendance_stats'),
       );
 
       if (response.statusCode == 200) {
@@ -71,7 +73,7 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.2.8.97:5000/upload_csv'),
+      Uri.parse('${Config.serverUrl}/upload_csv'),
     );
 
     request.files.add(
@@ -102,6 +104,54 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
     }
   }
 
+  void _showServerUrlDialog() {
+    _urlController.text = Config.serverUrl;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update Server URL'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _urlController,
+              decoration: InputDecoration(
+                labelText: 'Server URL',
+                hintText: 'http://server-ip:port',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Example: http://10.2.8.97:5000',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Config.updateServerUrl(_urlController.text);
+              Navigator.pop(context);
+              _fetchStats(); // Refresh stats with new URL
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Server URL updated')),
+              );
+            },
+            child: Text('UPDATE'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -118,6 +168,13 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
               letterSpacing: 1.2,
             ),
           ),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.settings),
+              onPressed: _showServerUrlDialog,
+              tooltip: 'Configure Server URL',
+            ),
+          ],
           flexibleSpace: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -292,6 +349,7 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
 
   @override
   void dispose() {
+    _urlController.dispose();
     _statsTimer?.cancel();
     super.dispose();
   }
