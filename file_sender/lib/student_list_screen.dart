@@ -75,10 +75,14 @@ class _StudentListScreenState extends State<StudentListScreen> {
         final data = json.decode(response.body);
         _logger.d('Received ${data['students'].length} students from server');
         
+        // Log the raw student data for debugging
+        _logger.d('Raw student data: ${data['students']}');
+
         setState(() {
           _students = data['students'].where((student) {
-            if (widget.showPresent) return student['isPresent'] as bool;
-            if (widget.showAbsent) return !(student['isPresent'] as bool);
+            _logger.d('Checking student: ${student['name']} - Present: ${student['isPresent']}');
+            if (widget.showPresent) return student['isPresent'] == true;
+            if (widget.showAbsent) return student['isPresent'] == false;
             return true;
           }).toList();
         });
@@ -124,10 +128,14 @@ class _StudentListScreenState extends State<StudentListScreen> {
         final data = json.decode(response.body);
         _logger.d('Received ${data['students'].length} students from search');
         
+        // Log the raw student data for debugging
+        _logger.d('Raw search student data: ${data['students']}');
+
         setState(() {
           _students = data['students'].where((student) {
-            if (widget.showPresent) return student['isPresent'] as bool;
-            if (widget.showAbsent) return !(student['isPresent'] as bool);
+            _logger.d('Checking student: ${student['name']} - Present: ${student['isPresent']}');
+            if (widget.showPresent) return student['isPresent'] == true;
+            if (widget.showAbsent) return student['isPresent'] == false;
             return true;
           }).toList();
         });

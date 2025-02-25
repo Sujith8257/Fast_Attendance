@@ -20,13 +20,14 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
   int _absentStudents = 0;
   Timer? _statsTimer;
   final _urlController = TextEditingController();
+  String _registrationNumber = "";
 
   @override
   void initState() {
     super.initState();
     _fetchStats();
     // Refresh stats every 30 seconds
-    _statsTimer = Timer.periodic(Duration(seconds: 30), (timer) => _fetchStats());
+    // _statsTimer = Timer.periodic(Duration(seconds: 30), (timer) => _fetchStats());
   }
 
   Future<void> _fetchStats() async {
@@ -320,6 +321,45 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
                     ),
                   ),
                 ),
+                SizedBox(height: 24),
+                Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          "Manual Attendance Entry",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 16),
+                        TextField(
+                          decoration: InputDecoration(
+                            labelText: 'Enter Registration Number',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            _registrationNumber = value;
+                          },
+                        ),
+                        SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: _isUploading ? null : () => _uploadManualAttendance(),
+                          child: Text("Mark Attendance"),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 if (_serverResponse.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
@@ -345,6 +385,44 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _uploadManualAttendance() async {
+    if (_registrationNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please enter a registration number")),
+      );
+      return;
+    }
+
+    setState(() => _isUploading = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('${Config.serverUrl}/mark_attendance'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'registrationNumber': _registrationNumber}),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        setState(() {
+          _serverResponse = jsonResponse['message'] ?? "Unknown response";
+        });
+        // Refresh student list after marking attendance
+        // _fetchStudents();
+      } else {
+        setState(() {
+          _serverResponse = "Failed to mark attendance";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _serverResponse = "Error marking attendance";
+      });
+    } finally {
+      setState(() => _isUploading = false);
+    }
   }
 
   @override

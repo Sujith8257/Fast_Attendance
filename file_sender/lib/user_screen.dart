@@ -11,6 +11,7 @@ class UserScreen extends StatefulWidget {
 
 class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _uniqueIdController = TextEditingController();
+  final TextEditingController _urlController = TextEditingController();
   final Logger _logger = Logger();
   String _userName = "";
   String _uniqueIdResponse = "";
@@ -84,10 +85,7 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
   Future<void> uploadUniqueId(String uniqueId) async {
     if (!_userFound) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Please verify your registration number first"),
-          backgroundColor: Colors.orange,
-        ),
+        SnackBar(content: Text("Please verify your registration number first")),
       );
       return;
     }
@@ -103,31 +101,20 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
 
       if (response.statusCode == 200) {
         setState(() => _uniqueIdResponse = jsonResponse['message']);
-        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(jsonResponse['message']),
-            backgroundColor: Colors.green,
-          ),
+          SnackBar(content: Text(jsonResponse['message'])),
         );
-      } else if (response.statusCode == 403) {
-        _showErrorDialog(
-          "Attendance Error",
-          jsonResponse['message'] ?? "Multiple attendance attempts are not allowed.",
-        );
+        // Refresh student list after marking attendance
+        // _fetchStudents();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(jsonResponse['error'] ?? "Error uploading ID"),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(jsonResponse['error'] ?? "Error uploading ID")),
         );
       }
     } catch (e) {
       _logger.e("Error uploading unique ID", error: e);
-      _showErrorDialog(
-        "Connection Error",
-        "Unable to connect to the classroom server. Please ensure you're in the correct classroom and try again.",
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Connection error")),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -210,6 +197,53 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
     );
   }
 
+  void _showServerUrlDialog() {
+    _urlController.text = Config.serverUrl;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update Server URL'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _urlController,
+              decoration: InputDecoration(
+                labelText: 'Server URL',
+                hintText: 'http://server-ip:port',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Example: http://10.2.8.97:5000',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Config.updateServerUrl(_urlController.text);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Server URL updated')),
+              );
+            },
+            child: Text('UPDATE'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -230,6 +264,13 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
               letterSpacing: 1.2,
             ),
           ),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.settings),
+              onPressed: _showServerUrlDialog,
+              tooltip: 'Configure Server URL',
+            ),
+          ],
           flexibleSpace: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -381,6 +422,7 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
   @override
   void dispose() {
     _uniqueIdController.dispose();
+    _urlController.dispose();
     _animationController.dispose();
     super.dispose();
   }
