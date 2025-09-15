@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'student_list_screen.dart';
 import 'dart:async';
 import 'config.dart';
 
 class UploadCSVScreen extends StatefulWidget {
+  const UploadCSVScreen({super.key});
+
   @override
   _UploadCSVScreenState createState() => _UploadCSVScreenState();
 }

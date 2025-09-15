@@ -9,10 +9,10 @@ class StudentListScreen extends StatefulWidget {
   final bool showAbsent;
 
   const StudentListScreen({
-    Key? key,
+    super.key,
     this.showPresent = false,
     this.showAbsent = false,
-  }) : super(key: key);
+  });
 
   @override
   _StudentListScreenState createState() => _StudentListScreenState();
