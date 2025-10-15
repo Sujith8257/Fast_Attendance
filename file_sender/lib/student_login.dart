@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/firebase_auth_service.dart';
 import 'services/face_database_service.dart';
+import 'services/firestore_service.dart';
 import 'face_login_screen.dart';
 
 class StudentLogin extends StatefulWidget {
@@ -46,31 +47,50 @@ class _StudentLoginState extends State<StudentLogin> {
 
       if (userCredential?.user != null) {
         print('✅ Firebase sign in successful: ${userCredential!.user!.uid}');
-        
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Login successful!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
 
-        // Navigate to student dashboard
-        Navigator.pushReplacementNamed(context, '/user');
+        // Get student data from Firestore
+        var studentData = await FirestoreService.getStudentByFirebaseUid(
+            userCredential!.user!.uid);
+
+        if (studentData != null) {
+          // Update last login time
+          await FirestoreService.updateLastLogin(studentData['id']);
+
+          // Record successful login attempt
+          await FirestoreService.recordLoginAttempt(
+            email: email,
+            status: 'success',
+            studentId: studentData['id'],
+          );
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Welcome back, ${studentData['profile']['name']}!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Navigate to student dashboard
+          Navigator.pushReplacementNamed(context, '/user');
+        } else {
+          throw Exception('Student data not found in database');
+        }
       } else {
         throw Exception('Failed to sign in');
       }
     } catch (e) {
       print('❌ Error during login: $e');
       String errorMessage = e.toString().replaceFirst('Exception: ', '');
-      
+
       // Show more helpful message for invalid credentials
-      if (errorMessage.contains('Invalid email or password') || 
+      if (errorMessage.contains('Invalid email or password') ||
           errorMessage.contains('No user found')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Account not found. Please sign up first or check your credentials.'),
+            content: Text(
+                'Account not found. Please sign up first or check your credentials.'),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 4),
             action: SnackBarAction(
@@ -100,10 +120,11 @@ class _StudentLoginState extends State<StudentLogin> {
 
   Future<void> _handleFaceLogin() async {
     try {
-      // Get all stored face embeddings
-      Map<String, List<double>> storedEmbeddings = await FaceDatabaseService.getAllFaceEmbeddings();
-      
-      if (storedEmbeddings.isEmpty) {
+      // Get all students with face data from Firestore
+      List<Map<String, dynamic>> studentsWithFaceData =
+          await FirestoreService.getAllStudentsWithFaceData();
+
+      if (studentsWithFaceData.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('No registered faces found. Please sign up first.'),
@@ -112,9 +133,19 @@ class _StudentLoginState extends State<StudentLogin> {
         );
         return;
       }
-      
+
+      // Convert to the format expected by FaceLoginScreen
+      Map<String, List<double>> storedEmbeddings = {};
+      for (var student in studentsWithFaceData) {
+        if (student['faceData'] != null &&
+            student['faceData']['embedding'] != null) {
+          storedEmbeddings[student['id']] =
+              List<double>.from(student['faceData']['embedding']);
+        }
+      }
+
       // Navigate to face login screen
-      final String? authenticatedUser = await Navigator.push<String>(
+      final String? authenticatedUserId = await Navigator.push<String>(
         context,
         MaterialPageRoute(
           builder: (context) => FaceLoginScreen(
@@ -122,19 +153,32 @@ class _StudentLoginState extends State<StudentLogin> {
           ),
         ),
       );
-      
-      if (authenticatedUser != null) {
-        // Get user data
-        Map<String, dynamic>? userData = await FaceDatabaseService.getUserData(authenticatedUser);
-        
-        if (userData != null) {
+
+      if (authenticatedUserId != null) {
+        // Find the student data
+        var studentData = studentsWithFaceData.firstWhere(
+          (student) => student['id'] == authenticatedUserId,
+          orElse: () => {},
+        );
+
+        if (studentData.isNotEmpty) {
+          // Update last login time
+          await FirestoreService.updateLastLogin(authenticatedUserId);
+
+          // Record successful login attempt
+          await FirestoreService.recordLoginAttempt(
+            email: studentData['profile']['email'],
+            status: 'success',
+            studentId: authenticatedUserId,
+          );
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Welcome back, ${userData['name']}!'),
+              content: Text('Welcome back, ${studentData['profile']['name']}!'),
               backgroundColor: Colors.green,
             ),
           );
-          
+
           // Navigate to user dashboard
           Navigator.pushReplacementNamed(context, '/user');
         }
@@ -284,7 +328,9 @@ class _StudentLoginState extends State<StudentLogin> {
                               ),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                  _obscurePassword
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                   color: Color(0xFFa2abb3),
                                 ),
                                 onPressed: () {

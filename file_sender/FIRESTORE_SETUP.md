@@ -11,9 +11,28 @@ This guide will help you set up Firestore collections for the student login and 
 
 ## 🗄️ Collections Structure
 
+### 📝 Document ID Naming Convention
+
+**Students Collection**: Document IDs are based on student names for easy identification:
+- **Format**: `{student-name-sanitized}`
+- **Example**: `john_doe` (for "John Doe")
+- **Sanitization Rules**:
+  - Removes special characters
+  - Replaces spaces with underscores
+  - Converts to lowercase
+  - Adds `student_` prefix if name starts with number
+  - Limits to 150 characters (Firestore limit)
+  - Adds registration number suffix if duplicate exists
+
+**Examples**:
+- "John Doe" → `john_doe`
+- "Mary Jane Smith" → `mary_jane_smith`
+- "123 Student" → `student_123_student`
+- "John@Doe!" → `johndoe`
+
 ### 1. **Students Collection** (`students`)
 ```javascript
-students/{studentId}/
+students/{student-name-sanitized}/  # Document ID is based on student name
 ├── profile: {
 │     email: "student@klu.ac.in",
 │     name: "John Doe",
@@ -28,8 +47,8 @@ students/{studentId}/
 │     phoneNumber: "+1234567890"
 │   }
 ├── faceData: {
-│     embedding: [0.1, 0.2, ...], // 64-dimensional array
-│     embeddingSize: 64,
+│     embedding: [0.1, 0.2, ...], // 128-dimensional array
+│     embeddingSize: 128,
 │     registeredAt: timestamp,
 │     isVerified: true,
 │     confidence: 0.95

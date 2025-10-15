@@ -3,6 +3,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'config.dart';
+import 'face_verification_modal.dart';
+import 'services/firestore_service.dart';
+import 'services/firebase_auth_service.dart';
 
 class UserScreen extends StatefulWidget {
   const UserScreen({super.key});
@@ -88,7 +91,7 @@ class _UserScreenState extends State<UserScreen>
     }
   }
 
-  Future<void> uploadUniqueId(String uniqueId) async {
+  Future<void> _handleFaceVerificationAndAttendance(String uniqueId) async {
     if (!_userFound) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Please verify your registration number first")),
@@ -96,6 +99,61 @@ class _UserScreenState extends State<UserScreen>
       return;
     }
 
+    setState(() => _isLoading = true);
+
+    try {
+      // Fetch face embeddings mapped to registration numbers
+      final embeddingsByRegNumber = await FirestoreService.getFaceEmbeddingsByRegNumber();
+
+      if (embeddingsByRegNumber.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("No face data available. Please contact administrator."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Show face verification in a modal dialog
+      final result = await _showFaceVerificationDialog(embeddingsByRegNumber);
+
+      if (result != null && result is String) {
+        // Face verification successful, check if the matched registration number matches the entered one
+        if (result == uniqueId) {
+          print('✅ Face verification successful for registration number: $result');
+          await uploadUniqueId(uniqueId);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Face verification failed: Face does not match the entered registration number."),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        // Face verification failed
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Face verification failed. Please try again."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error during face verification: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error during face verification: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> uploadUniqueId(String uniqueId) async {
     setState(() => _isLoading = true);
 
     try {
@@ -220,6 +278,116 @@ class _UserScreenState extends State<UserScreen>
     );
   }
 
+  Future<String?> _showFaceVerificationDialog(Map<String, List<double>> storedEmbeddings) async {
+    return await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: BoxDecoration(
+            color: Color(0xFF1f2937),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: FaceVerificationModal(
+            storedEmbeddings: storedEmbeddings,
+            onSuccess: (userId) {
+              Navigator.pop(context, userId);
+            },
+            onCancel: () {
+              Navigator.pop(context);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleLogout() async {
+    try {
+      // Show confirmation dialog
+      final shouldLogout = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Color(0xFF1f2937),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Logout',
+            style: TextStyle(
+              color: Color(0xFFf9fafb),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to logout?',
+            style: TextStyle(
+              color: Color(0xFFd1d5db),
+              fontSize: 16,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF9ca3af)),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFFef4444),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text('Logout'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldLogout == true) {
+        setState(() => _isLoading = true);
+
+        // Sign out from Firebase
+        await FirebaseAuthService.signOut();
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logged out successfully'),
+            backgroundColor: Color(0xFF10b981),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Navigate to login screen
+        Navigator.pushReplacementNamed(context, '/');
+      }
+    } catch (e) {
+      print('❌ Error during logout: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error during logout: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   void _showServerUrlDialog() {
     _urlController.text = Config.serverUrl;
     showDialog(
@@ -335,14 +503,19 @@ class _UserScreenState extends State<UserScreen>
               onPressed: _showServerUrlDialog,
               tooltip: 'Configure Server URL',
             ),
+            IconButton(
+              icon: Icon(Icons.logout, color: Color(0xFFd1d5db)),
+              onPressed: _isLoading ? null : _handleLogout,
+              tooltip: 'Logout',
+            ),
           ],
         ),
         body: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: EdgeInsets.all(24.0),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                SizedBox(height: 40), // Add top spacing
                 // Welcome section
                 Container(
                   width: double.infinity,
@@ -536,7 +709,7 @@ class _UserScreenState extends State<UserScreen>
                                 ),
                                 onPressed: _isLoading
                                     ? null
-                                    : () => uploadUniqueId(
+                                    : () => _handleFaceVerificationAndAttendance(
                                         _uniqueIdController.text.trim()),
                                 child: _isLoading
                                     ? SizedBox(
@@ -550,7 +723,7 @@ class _UserScreenState extends State<UserScreen>
                                         ),
                                       )
                                     : Text(
-                                        "Mark Attendance",
+                                        "Verify Face & Mark Attendance",
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
@@ -598,6 +771,7 @@ class _UserScreenState extends State<UserScreen>
                       ],
                     ),
                   ),
+                SizedBox(height: 40), // Add bottom spacing
               ],
             ),
           ),

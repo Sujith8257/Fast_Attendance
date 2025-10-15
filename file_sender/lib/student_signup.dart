@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'face_scan_screen.dart';
 import 'services/face_database_service.dart';
+import 'services/firestore_service.dart';
 import 'services/firebase_auth_service.dart';
 
 class StudentSignup extends StatefulWidget {
@@ -46,7 +47,18 @@ class _StudentSignupState extends State<StudentSignup> {
         print(
             '✅ Firebase user created successfully: ${userCredential!.user!.uid}');
 
-        // Store additional user data and face embedding locally
+        // Store student data in Firestore
+        String studentId = await FirestoreService.createStudent(
+          email: email,
+          name: name,
+          registrationNumber: regNumber,
+          firebaseUid: userCredential.user!.uid,
+          faceEmbedding: _faceEmbedding,
+          department: 'Computer Science', // You can make this dynamic
+          year: '2024', // You can make this dynamic
+        );
+
+        // Also store locally for offline access
         Map<String, dynamic> userData = {
           'name': name,
           'email': email,
@@ -55,14 +67,14 @@ class _StudentSignupState extends State<StudentSignup> {
           'signupDate': DateTime.now().toIso8601String(),
         };
 
-        // Store user data and face embedding
         bool userDataStored =
             await FaceDatabaseService.storeUserData(regNumber, userData);
         bool embeddingStored = await FaceDatabaseService.storeFaceEmbedding(
             regNumber, _faceEmbedding!);
 
-        if (userDataStored && embeddingStored) {
+        if (studentId.isNotEmpty && userDataStored && embeddingStored) {
           print('✅ User registration completed successfully');
+          print('Student ID: $studentId');
           print('Face embedding dimensions: ${_faceEmbedding!.length}');
           print('Face embedding preview: ${_faceEmbedding!.take(5).toList()}');
 
@@ -78,9 +90,9 @@ class _StudentSignupState extends State<StudentSignup> {
           // Navigate to student dashboard
           Navigator.pushReplacementNamed(context, '/user');
         } else {
-          // If local storage fails, delete the Firebase user
+          // If storage fails, delete the Firebase user
           await userCredential.user!.delete();
-          throw Exception('Failed to save registration data locally');
+          throw Exception('Failed to save registration data');
         }
       } else {
         throw Exception('Failed to create Firebase user account');

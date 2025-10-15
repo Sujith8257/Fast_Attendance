@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 class FaceRegistrationService {
   static Interpreter? _interpreter;
   static bool _isModelLoaded = false;
-  static const int _embeddingSize = 64;
+  static const int _embeddingSize = 128;
   static const int _inputSize = 112;
 
   // Initialize the TensorFlow Lite model
@@ -93,7 +93,7 @@ class FaceRegistrationService {
                       (c) => preprocessedFace[y * _inputSize * 3 + x * 3 + c]
                           .toDouble()))));
 
-      // Prepare output tensor with correct shape [1, 64]
+      // Prepare output tensor with correct shape [1, 128]
       var output = List.generate(1, (i) => List.filled(_embeddingSize, 0.0));
 
       if (kDebugMode) {

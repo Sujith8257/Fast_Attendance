@@ -82,7 +82,13 @@ class NetMarkApp extends StatelessWidget {
         '/faculty-dashboard': (context) => FacultyDashboard(),
         '/attendance': (context) => AttendanceScreen(),
         '/user': (context) => UserScreen(),
-        '/admin': (context) => StudentListScreen(),
+        '/admin': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return StudentListScreen(
+            showPresent: args?['showPresent'] ?? false,
+            showAbsent: args?['showAbsent'] ?? false,
+          );
+        },
         '/upload': (context) => UploadCSVScreen(),
       },
     );

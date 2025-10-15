@@ -43,8 +43,9 @@ class _FacultyLoginState extends State<FacultyLogin> {
       );
 
       if (userCredential?.user != null) {
-        print('✅ Faculty Firebase sign in successful: ${userCredential!.user!.uid}');
-        
+        print(
+            '✅ Faculty Firebase sign in successful: ${userCredential!.user!.uid}');
+
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -54,21 +55,22 @@ class _FacultyLoginState extends State<FacultyLogin> {
           ),
         );
 
-        // Navigate to faculty dashboard
-        Navigator.pushReplacementNamed(context, '/faculty-dashboard');
+        // Navigate to upload CSV screen
+        Navigator.pushReplacementNamed(context, '/upload');
       } else {
         throw Exception('Failed to sign in');
       }
     } catch (e) {
       print('❌ Error during faculty login: $e');
       String errorMessage = e.toString().replaceFirst('Exception: ', '');
-      
+
       // Show more helpful message for invalid credentials
-      if (errorMessage.contains('Invalid email or password') || 
+      if (errorMessage.contains('Invalid email or password') ||
           errorMessage.contains('No user found')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Account not found. Please sign up first or check your credentials.'),
+            content: Text(
+                'Account not found. Please sign up first or check your credentials.'),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 4),
             action: SnackBarAction(
@@ -238,7 +240,9 @@ class _FacultyLoginState extends State<FacultyLogin> {
                               ),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                  _obscurePassword
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                   color: Color(0xFF6e7681),
                                 ),
                                 onPressed: () {
@@ -301,7 +305,8 @@ class _FacultyLoginState extends State<FacultyLogin> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             ),
                             SizedBox(width: 12),

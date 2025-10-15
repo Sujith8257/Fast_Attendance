@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 class FirestoreService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -12,6 +13,34 @@ class FirestoreService {
   static const String _attendanceCollection = 'attendance';
   static const String _classesCollection = 'classes';
   static const String _facultyCollection = 'faculty';
+
+  // ==================== UTILITY METHODS ====================
+
+  /// Sanitize a string to be used as a Firestore document ID
+  static String _sanitizeDocumentId(String input) {
+    // Remove special characters and replace spaces with underscores
+    String sanitized = input
+        .replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '') // Remove special characters
+        .replaceAll(RegExp(r'\s+'), '_') // Replace spaces with underscores
+        .toLowerCase(); // Convert to lowercase
+
+    // Ensure it doesn't start with a number
+    if (sanitized.isNotEmpty && RegExp(r'^[0-9]').hasMatch(sanitized)) {
+      sanitized = 'student_$sanitized';
+    }
+
+    // Ensure it's not empty
+    if (sanitized.isEmpty) {
+      sanitized = 'student_${DateTime.now().millisecondsSinceEpoch}';
+    }
+
+    // Limit length to 150 characters (Firestore limit)
+    if (sanitized.length > 150) {
+      sanitized = sanitized.substring(0, 150);
+    }
+
+    return sanitized;
+  }
 
   // ==================== STUDENT OPERATIONS ====================
 
@@ -27,7 +56,18 @@ class FirestoreService {
     String? phoneNumber,
   }) async {
     try {
-      final studentRef = _db.collection(_studentsCollection).doc();
+      // Use student name as document ID (sanitized for Firestore)
+      String documentId = _sanitizeDocumentId(name);
+
+      // Check if document already exists
+      final existingDoc =
+          await _db.collection(_studentsCollection).doc(documentId).get();
+      if (existingDoc.exists) {
+        // If document exists, append registration number to make it unique
+        documentId = '${documentId}_${registrationNumber}';
+      }
+
+      final studentRef = _db.collection(_studentsCollection).doc(documentId);
 
       final studentData = {
         'profile': {
@@ -46,7 +86,7 @@ class FirestoreService {
         'faceData': faceEmbedding != null
             ? {
                 'embedding': faceEmbedding,
-                'embeddingSize': 64,
+                'embeddingSize': 128,
                 'registeredAt': FieldValue.serverTimestamp(),
                 'isVerified': true,
                 'confidence': 0.95,
@@ -89,6 +129,26 @@ class FirestoreService {
       return data;
     } catch (e) {
       print('❌ Error getting student by Firebase UID: $e');
+      return null;
+    }
+  }
+
+  /// Get student by name (using document ID)
+  static Future<Map<String, dynamic>?> getStudentByName(String name) async {
+    try {
+      String documentId = _sanitizeDocumentId(name);
+      final doc =
+          await _db.collection(_studentsCollection).doc(documentId).get();
+
+      if (!doc.exists) {
+        return null;
+      }
+
+      final data = doc.data()!;
+      data['id'] = doc.id;
+      return data;
+    } catch (e) {
+      print('❌ Error getting student by name: $e');
       return null;
     }
   }
@@ -143,6 +203,38 @@ class FirestoreService {
     }
   }
 
+  /// Get face embeddings mapped to registration numbers for face recognition
+  static Future<Map<String, List<double>>>
+      getFaceEmbeddingsByRegNumber() async {
+    try {
+      final querySnapshot = await _db
+          .collection(_studentsCollection)
+          .where('profile.isActive', isEqualTo: true)
+          .get();
+
+      final embeddingsByRegNumber = <String, List<double>>{};
+
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        if (data['faceData'] != null &&
+            data['faceData']['embedding'] != null &&
+            data['profile']['registrationNumber'] != null) {
+          String regNumber = data['profile']['registrationNumber'];
+          List<double> embedding =
+              List<double>.from(data['faceData']['embedding']);
+          embeddingsByRegNumber[regNumber] = embedding;
+        }
+      }
+
+      print(
+          '✅ Loaded ${embeddingsByRegNumber.length} face embeddings by registration number');
+      return embeddingsByRegNumber;
+    } catch (e) {
+      print('❌ Error getting face embeddings by registration number: $e');
+      return {};
+    }
+  }
+
   /// Update student's last login time
   static Future<void> updateLastLogin(String studentId) async {
     try {
@@ -162,7 +254,7 @@ class FirestoreService {
       await _db.collection(_studentsCollection).doc(studentId).update({
         'faceData': {
           'embedding': faceEmbedding,
-          'embeddingSize': 64,
+          'embeddingSize': 128,
           'registeredAt': FieldValue.serverTimestamp(),
           'isVerified': true,
           'confidence': 0.95,
@@ -172,6 +264,28 @@ class FirestoreService {
       print('✅ Face data updated for student: $studentId');
     } catch (e) {
       print('❌ Error updating face data: $e');
+      throw Exception('Failed to update face data: $e');
+    }
+  }
+
+  /// Update student's face data by name
+  static Future<void> updateFaceDataByName(
+      String studentName, List<double> faceEmbedding) async {
+    try {
+      String documentId = _sanitizeDocumentId(studentName);
+      await _db.collection(_studentsCollection).doc(documentId).update({
+        'faceData': {
+          'embedding': faceEmbedding,
+          'embeddingSize': 128,
+          'registeredAt': FieldValue.serverTimestamp(),
+          'isVerified': true,
+          'confidence': 0.95,
+        },
+        'preferences.faceLoginEnabled': true,
+      });
+      print('✅ Face data updated for student: $studentName (ID: $documentId)');
+    } catch (e) {
+      print('❌ Error updating face data by name: $e');
       throw Exception('Failed to update face data: $e');
     }
   }
@@ -306,7 +420,7 @@ class FirestoreService {
       norm2 += embedding2[i] * embedding2[i];
     }
 
-    return dotProduct / (norm1.sqrt() * norm2.sqrt());
+    return dotProduct / (math.sqrt(norm1) * math.sqrt(norm2));
   }
 
   /// Find student by face similarity

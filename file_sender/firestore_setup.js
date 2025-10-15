@@ -43,8 +43,8 @@ const createSampleStudent = async () => {
         phoneNumber: '+1234567890'
       },
       faceData: {
-        embedding: new Array(64).fill(0).map(() => Math.random()),
-        embeddingSize: 64,
+        embedding: new Array(128).fill(0).map(() => Math.random()),
+        embeddingSize: 128,
         registeredAt: admin.firestore.FieldValue.serverTimestamp(),
         isVerified: true,
         confidence: 0.95
