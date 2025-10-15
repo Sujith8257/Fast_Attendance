@@ -11,7 +11,8 @@ class UserScreen extends StatefulWidget {
   _UserScreenState createState() => _UserScreenState();
 }
 
-class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateMixin {
+class _UserScreenState extends State<UserScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _uniqueIdController = TextEditingController();
   final TextEditingController _urlController = TextEditingController();
   final Logger _logger = Logger();
@@ -29,7 +30,8 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
       duration: Duration(milliseconds: 500),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
+    _fadeAnimation =
+        Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
   }
 
   Future<void> fetchUserDetails(String uniqueId) async {
@@ -40,9 +42,11 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('${Config.serverUrl}/get_user/$uniqueId'),
-      ).timeout(Duration(seconds: 5));
+      final response = await http
+          .get(
+            Uri.parse('${Config.serverUrl}/get_user/$uniqueId'),
+          )
+          .timeout(Duration(seconds: 5));
 
       final jsonResponse = json.decode(response.body);
 
@@ -52,7 +56,7 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
           _userFound = true;
         });
         _animationController.forward();
-        
+
         // Check if there's a warning about previous attendance
         if (jsonResponse.containsKey('warning')) {
           _showWarningDialog(
@@ -95,9 +99,11 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
     setState(() => _isLoading = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('${Config.serverUrl}/upload_unique_id/$uniqueId'),
-      ).timeout(Duration(seconds: 5));
+      final response = await http
+          .post(
+            Uri.parse('${Config.serverUrl}/upload_unique_id/$uniqueId'),
+          )
+          .timeout(Duration(seconds: 5));
 
       final jsonResponse = json.decode(response.body);
 
@@ -110,7 +116,8 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
         // _fetchStudents();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(jsonResponse['error'] ?? "Error uploading ID")),
+          SnackBar(
+              content: Text(jsonResponse['error'] ?? "Error uploading ID")),
         );
       }
     } catch (e) {
@@ -127,11 +134,12 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        backgroundColor: Color(0xFF1f2937), // Dark background
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           title,
           style: TextStyle(
-            color: Colors.red[700],
+            color: Color(0xFFef4444), // Red
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -141,20 +149,26 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
             Icon(
               Icons.warning_amber_rounded,
               size: 50,
-              color: Colors.orange,
+              color: Color(0xFFf59e0b), // Orange
             ),
             SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFFd1d5db), // Light gray text
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("OK"),
+            child: Text(
+              "OK",
+              style: TextStyle(color: Color(0xFF818cf8)), // Indigo
+            ),
           ),
         ],
       ),
@@ -165,11 +179,12 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        backgroundColor: Color(0xFF1f2937), // Dark background
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           title,
           style: TextStyle(
-            color: Colors.orange[700],
+            color: Color(0xFFf59e0b), // Orange
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -179,20 +194,26 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
             Icon(
               Icons.warning_amber_rounded,
               size: 50,
-              color: Colors.orange,
+              color: Color(0xFFf59e0b), // Orange
             ),
             SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFFd1d5db), // Light gray text
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("OK"),
+            child: Text(
+              "OK",
+              style: TextStyle(color: Color(0xFF818cf8)), // Indigo
+            ),
           ),
         ],
       ),
@@ -204,24 +225,51 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Update Server URL'),
+        backgroundColor: Color(0xFF1f2937), // Dark background
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Update Server URL',
+          style: TextStyle(
+            color: Color(0xFFf9fafb), // White text
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: _urlController,
-              decoration: InputDecoration(
-                labelText: 'Server URL',
-                hintText: 'http://server-ip:port',
-                border: OutlineInputBorder(),
+            Container(
+              decoration: BoxDecoration(
+                color: Color(0xFF374151), // Darker input background
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TextField(
+                controller: _urlController,
+                style: TextStyle(
+                  color: Color(0xFFf9fafb), // White text
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Server URL',
+                  labelStyle: TextStyle(
+                    color: Color(0xFF9ca3af), // Gray label
+                  ),
+                  hintText: 'http://server-ip:port',
+                  hintStyle: TextStyle(
+                    color: Color(0xFF6b7280), // Darker gray hint
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
               ),
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 12),
             Text(
               'Example: http://10.2.8.97:5000',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey,
+                color: Color(0xFF9ca3af), // Gray text
               ),
             ),
           ],
@@ -229,14 +277,27 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('CANCEL'),
+            child: Text(
+              'CANCEL',
+              style: TextStyle(color: Color(0xFF9ca3af)), // Gray
+            ),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF818cf8), // Indigo
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             onPressed: () {
               Config.updateServerUrl(_urlController.text);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Server URL updated')),
+                SnackBar(
+                  content: Text('Server URL updated'),
+                  backgroundColor: Color(0xFF10b981), // Green
+                ),
               );
             },
             child: Text('UPDATE'),
@@ -254,123 +315,199 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
         return false;
       },
       child: Scaffold(
+        backgroundColor:
+            Color(0xFF111827), // Dark background like faculty dashboard
         appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-          ),
+          backgroundColor: Color(0xFF1f2937), // Dark app bar
+          elevation: 0,
+          automaticallyImplyLeading: false, // Remove back button
           title: Text(
-            "KARE FAST · USER",
+            "Student Dashboard",
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
+              letterSpacing: -0.5,
+              color: Color(0xFFf9fafb), // White text
             ),
           ),
           actions: [
             IconButton(
-              icon: Icon(Icons.settings),
+              icon: Icon(Icons.settings, color: Color(0xFFd1d5db)),
               onPressed: _showServerUrlDialog,
               tooltip: 'Configure Server URL',
             ),
           ],
-          flexibleSpace: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.blue[700]!, Colors.blue[500]!],
-              ),
-            ),
-          ),
         ),
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.grey[100]!, Colors.grey[200]!],
-            ),
-          ),
+        body: SafeArea(
           child: Padding(
-            padding: EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Card(
-                  elevation: 8,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                // Welcome section
+                Container(
+                  width: double.infinity,
+                  margin: EdgeInsets.only(bottom: 32),
+                  child: Column(
+                    children: [
+                      Text(
+                        "Welcome Back",
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFf9fafb), // White text
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        "Mark your attendance for today",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFFd1d5db), // Light gray text
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Main card
+                Container(
+                  decoration: BoxDecoration(
+                    color: Color(0xFF1f2937), // Dark card background
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Padding(
-                    padding: EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(24.0),
                     child: Column(
                       children: [
-                        TextField(
-                          controller: _uniqueIdController,
-                          decoration: InputDecoration(
-                            labelText: "Enter Registration Number",
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
+                        // Registration number input
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Color(0xFF374151), // Darker input background
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: TextField(
+                            controller: _uniqueIdController,
+                            style: TextStyle(
+                              color: Color(0xFFf9fafb), // White text
+                              fontSize: 16,
                             ),
-                            prefixIcon: Icon(Icons.numbers, color: Colors.blue),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: Colors.blue, width: 2),
+                            decoration: InputDecoration(
+                              labelText: "Enter Registration Number",
+                              labelStyle: TextStyle(
+                                color: Color(0xFF9ca3af), // Gray label
+                              ),
+                              hintText: "e.g., 20K-0001",
+                              hintStyle: TextStyle(
+                                color: Color(0xFF6b7280), // Darker gray hint
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.numbers,
+                                color: Color(0xFF818cf8), // Indigo accent
+                              ),
                             ),
                           ),
                         ),
-                        SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  padding: EdgeInsets.symmetric(vertical: 15),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                onPressed: _isLoading
-                                    ? null
-                                    : () => fetchUserDetails(_uniqueIdController.text.trim()),
-                                child: _isLoading
-                                    ? SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                        ),
-                                      )
-                                    : Text("Verify Registration Number", style: TextStyle(color: Colors.white),),
+                        SizedBox(height: 24),
+
+                        // Verify button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Color(0xFF818cf8), // Indigo primary
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                          ],
+                            onPressed: _isLoading
+                                ? null
+                                : () => fetchUserDetails(
+                                    _uniqueIdController.text.trim()),
+                            child: _isLoading
+                                ? SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    ),
+                                  )
+                                : Text(
+                                    "Verify Registration Number",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
+
+                // User found card
                 if (_userName.isNotEmpty)
                   FadeTransition(
                     opacity: _fadeAnimation,
-                    child: Card(
-                      elevation: 8,
-                      margin: EdgeInsets.only(top: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                    child: Container(
+                      margin: EdgeInsets.only(top: 24),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF1f2937), // Dark card background
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Padding(
-                        padding: EdgeInsets.all(16.0),
+                        padding: EdgeInsets.all(24.0),
                         child: Column(
                           children: [
+                            // Success icon
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: Color(0xFF10b981)
+                                    .withOpacity(0.1), // Green with opacity
+                                borderRadius: BorderRadius.circular(32),
+                              ),
+                              child: Icon(
+                                Icons.check_circle,
+                                color: Color(0xFF10b981), // Green
+                                size: 32,
+                              ),
+                            ),
+                            SizedBox(height: 16),
+
                             Text(
-                              "User Found",
+                              "User Verified",
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green,
+                                color: Color(0xFFf9fafb), // White text
                               ),
                             ),
                             SizedBox(height: 8),
@@ -379,38 +516,86 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
+                                color: Color(0xFF10b981), // Green
                               ),
                             ),
-                            SizedBox(height: 16),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 15),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                            SizedBox(height: 24),
+
+                            // Mark attendance button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Color(0xFF10b981), // Green
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
+                                onPressed: _isLoading
+                                    ? null
+                                    : () => uploadUniqueId(
+                                        _uniqueIdController.text.trim()),
+                                child: _isLoading
+                                    ? SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
+                                        ),
+                                      )
+                                    : Text(
+                                        "Mark Attendance",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                               ),
-                              onPressed: _isLoading
-                                  ? null
-                                  : () => uploadUniqueId(_uniqueIdController.text.trim()),
-                              child: Text("Mark Attendance"),
                             ),
                           ],
                         ),
                       ),
                     ),
                   ),
+
+                // Response message
                 if (_uniqueIdResponse.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: Text(
-                      _uniqueIdResponse,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                  Container(
+                    margin: EdgeInsets.only(top: 24),
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF10b981).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Color(0xFF10b981).withOpacity(0.3),
+                        width: 1,
                       ),
-                      textAlign: TextAlign.center,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF10b981),
+                          size: 20,
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _uniqueIdResponse,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF10b981),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],
@@ -428,4 +613,4 @@ class _UserScreenState extends State<UserScreen> with SingleTickerProviderStateM
     _animationController.dispose();
     super.dispose();
   }
-} 
+}

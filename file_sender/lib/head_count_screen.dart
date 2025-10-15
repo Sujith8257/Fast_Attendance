@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import 'services/yolo_service.dart';
 
 class HeadCountScreen extends StatefulWidget {
@@ -73,7 +71,7 @@ class _HeadCountScreenState extends State<HeadCountScreen> {
                       ),
                     ),
                     // Placeholder for symmetry
-                    Container(
+                    SizedBox(
                       width: 40,
                       height: 40,
                     ),
@@ -492,9 +490,9 @@ class _HeadCountScreenState extends State<HeadCountScreen> {
       setState(() {
         _processingStatus = 'Detecting heads...';
       });
-      
+
       final int detectedHeads = await YOLOService.detectHeads(_imageFile!);
-      
+
       setState(() {
         _headCount = detectedHeads;
         _isProcessing = false;
@@ -507,13 +505,12 @@ class _HeadCountScreenState extends State<HeadCountScreen> {
           backgroundColor: Colors.green,
         ),
       );
-
     } catch (e) {
       setState(() {
         _isProcessing = false;
         _processingStatus = '';
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error processing image: $e'),

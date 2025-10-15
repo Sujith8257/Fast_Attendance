@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'services/firebase_auth_service.dart';
 
 class FacultyLogin extends StatefulWidget {
   const FacultyLogin({super.key});
@@ -8,8 +9,92 @@ class FacultyLogin extends StatefulWidget {
 }
 
 class _FacultyLoginState extends State<FacultyLogin> {
-  final TextEditingController _regNumberController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  Future<void> _handleFacultyLogin() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String email = _emailController.text.trim();
+      String password = _passwordController.text;
+
+      if (email.isEmpty || password.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please enter both email and password'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Sign in with Firebase
+      print('🔥 Faculty signing in with Firebase...');
+      var userCredential = await FirebaseAuthService.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential?.user != null) {
+        print('✅ Faculty Firebase sign in successful: ${userCredential!.user!.uid}');
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login successful!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Navigate to faculty dashboard
+        Navigator.pushReplacementNamed(context, '/faculty-dashboard');
+      } else {
+        throw Exception('Failed to sign in');
+      }
+    } catch (e) {
+      print('❌ Error during faculty login: $e');
+      String errorMessage = e.toString().replaceFirst('Exception: ', '');
+      
+      // Show more helpful message for invalid credentials
+      if (errorMessage.contains('Invalid email or password') || 
+          errorMessage.contains('No user found')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Account not found. Please sign up first or check your credentials.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Sign Up',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.pushNamed(context, '/faculty-signup');
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +180,7 @@ class _FacultyLoginState extends State<FacultyLogin> {
                     // Login form
                     Column(
                       children: [
-                        // Registration Number field
+                        // Email field
                         Container(
                           width: double.infinity,
                           height: 56,
@@ -104,13 +189,14 @@ class _FacultyLoginState extends State<FacultyLogin> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: TextField(
-                            controller: _regNumberController,
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                             ),
                             decoration: InputDecoration(
-                              hintText: "Staff ID",
+                              hintText: "Email Address",
                               hintStyle: TextStyle(
                                 color: Color(0xFF6e7681), // Text placeholder
                               ),
@@ -135,7 +221,7 @@ class _FacultyLoginState extends State<FacultyLogin> {
                           ),
                           child: TextField(
                             controller: _passwordController,
-                            obscureText: true,
+                            obscureText: _obscurePassword,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -149,6 +235,17 @@ class _FacultyLoginState extends State<FacultyLogin> {
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 16,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                  color: Color(0xFF6e7681),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
                               ),
                             ),
                           ),
@@ -194,29 +291,36 @@ class _FacultyLoginState extends State<FacultyLogin> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  onPressed: () {
-                    // Handle login logic
-                    if (_regNumberController.text.isNotEmpty &&
-                        _passwordController.text.isNotEmpty) {
-                      // Navigate to faculty dashboard or handle login
-                      Navigator.pushReplacementNamed(
-                          context, '/faculty-dashboard');
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Please fill in all fields'),
-                          backgroundColor: Colors.red,
+                  onPressed: _isLoading ? null : _handleFacultyLogin,
+                  child: _isLoading
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              "Signing In...",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          "Login",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      );
-                    }
-                  },
-                  child: Text(
-                    "Login",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
                 ),
               ),
             ],
@@ -228,7 +332,7 @@ class _FacultyLoginState extends State<FacultyLogin> {
 
   @override
   void dispose() {
-    _regNumberController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }

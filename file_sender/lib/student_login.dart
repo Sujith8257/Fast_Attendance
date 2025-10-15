@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'services/firebase_auth_service.dart';
+import 'services/face_database_service.dart';
+import 'face_login_screen.dart';
 
 class StudentLogin extends StatefulWidget {
   const StudentLogin({super.key});
@@ -8,21 +11,156 @@ class StudentLogin extends StatefulWidget {
 }
 
 class _StudentLoginState extends State<StudentLogin> {
-  final TextEditingController _regNumberController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  Future<void> _handleEmailLogin() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String email = _emailController.text.trim();
+      String password = _passwordController.text;
+
+      if (email.isEmpty || password.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please enter both email and password'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Sign in with Firebase
+      print('🔥 Signing in with Firebase...');
+      var userCredential = await FirebaseAuthService.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential?.user != null) {
+        print('✅ Firebase sign in successful: ${userCredential!.user!.uid}');
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login successful!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Navigate to student dashboard
+        Navigator.pushReplacementNamed(context, '/user');
+      } else {
+        throw Exception('Failed to sign in');
+      }
+    } catch (e) {
+      print('❌ Error during login: $e');
+      String errorMessage = e.toString().replaceFirst('Exception: ', '');
+      
+      // Show more helpful message for invalid credentials
+      if (errorMessage.contains('Invalid email or password') || 
+          errorMessage.contains('No user found')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Account not found. Please sign up first or check your credentials.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Sign Up',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.pushNamed(context, '/student-signup');
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _handleFaceLogin() async {
+    try {
+      // Get all stored face embeddings
+      Map<String, List<double>> storedEmbeddings = await FaceDatabaseService.getAllFaceEmbeddings();
+      
+      if (storedEmbeddings.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No registered faces found. Please sign up first.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      
+      // Navigate to face login screen
+      final String? authenticatedUser = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FaceLoginScreen(
+            storedEmbeddings: storedEmbeddings,
+          ),
+        ),
+      );
+      
+      if (authenticatedUser != null) {
+        // Get user data
+        Map<String, dynamic>? userData = await FaceDatabaseService.getUserData(authenticatedUser);
+        
+        if (userData != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Welcome back, ${userData['name']}!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          // Navigate to user dashboard
+          Navigator.pushReplacementNamed(context, '/user');
+        }
+      }
+    } catch (e) {
+      print('❌ Face login error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Face login failed. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF0c0f14), // Background color
+      backgroundColor: Color(0xFF121416),
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: EdgeInsets.all(16),
+              child: Row(
                 children: [
                   // Back button
                   GestureDetector(
@@ -30,196 +168,248 @@ class _StudentLoginState extends State<StudentLogin> {
                     child: Container(
                       padding: EdgeInsets.all(8),
                       child: Icon(
-                        Icons.chevron_left,
+                        Icons.arrow_back,
                         color: Colors.white,
                         size: 24,
                       ),
                     ),
                   ),
                   // Title
-                  Text(
-                    "NetMark",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  Expanded(
+                    child: Text(
+                      "Student Login",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                  // Help button
-                  GestureDetector(
-                    onTap: () {
-                      // Show help dialog or navigate to help screen
-                    },
-                    child: Icon(
-                      Icons.help_outline,
-                      color: Color(0xFFa0a6b1), // Text secondary
-                      size: 24,
-                    ),
-                  ),
+                  // Spacer to balance the layout
+                  SizedBox(width: 40),
                 ],
               ),
+            ),
 
-              // Main content
-              Expanded(
+            // Main content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Welcome text
-                    SizedBox(
-                      width: double.infinity,
-                      child: Column(
-                        children: [
-                          Text(
-                            "Welcome Back",
-                            style: TextStyle(
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            "Login to continue your journey",
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Color(0xFFa0a6b1), // Text secondary
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    SizedBox(height: 32),
 
-                    SizedBox(height: 48),
-
-                    // Login form
+                    // Email field
                     Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Registration Number field
+                        Text(
+                          "Email",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
                         Container(
                           width: double.infinity,
                           height: 56,
                           decoration: BoxDecoration(
-                            color: Color(0xFF1a1d22), // Surface color
+                            color: Color(0xFF2c3035),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: TextField(
-                            controller: _regNumberController,
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                             ),
                             decoration: InputDecoration(
-                              hintText: "Registration Number",
+                              hintText: "Enter your email address",
                               hintStyle: TextStyle(
-                                color: Color(0xFF6e7681), // Text placeholder
+                                color: Color(0xFFa2abb3),
                               ),
                               border: InputBorder.none,
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(height: 24),
-
-                        // Password field
-                        Container(
-                          width: double.infinity,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF1a1d22), // Surface color
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: TextField(
-                            controller: _passwordController,
-                            obscureText: true,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: "Password",
-                              hintStyle: TextStyle(
-                                color: Color(0xFF6e7681), // Text placeholder
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(height: 16),
-
-                        // Forgot password link
-                        SizedBox(
-                          width: double.infinity,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: GestureDetector(
-                              onTap: () {
-                                // Navigate to forgot password screen
-                              },
-                              child: Text(
-                                "Forgot password?",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFFa0a6b1), // Text secondary
-                                ),
                               ),
                             ),
                           ),
                         ),
                       ],
                     ),
+
+                    SizedBox(height: 24),
+
+                    // Password field
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Password",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Color(0xFF2c3035),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: TextField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: "Enter your password",
+                              hintStyle: TextStyle(
+                                color: Color(0xFFa2abb3),
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                  color: Color(0xFFa2abb3),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 32),
+
+                    // Login button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFFdce7f3),
+                          foregroundColor: Color(0xFF121416),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                        ),
+                        onPressed: _isLoading ? null : _handleEmailLogin,
+                        child: _isLoading
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF121416)),
+                                    ),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    "Signing In...",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Text(
+                                "Login",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    SizedBox(height: 16),
+
+                    // Divider
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: Color(0xFF6b7280))),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            "OR",
+                            style: TextStyle(
+                              color: Color(0xFF6b7280),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Color(0xFF6b7280))),
+                      ],
+                    ),
+
+                    SizedBox(height: 16),
+
+                    // Face Login button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF10b981),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                        ),
+                        onPressed: _handleFaceLogin,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.face, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              "Face Login",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 32),
                   ],
                 ),
               ),
-
-              // Footer with login button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF0b79ee), // Primary color
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  onPressed: () {
-                    // Handle login logic
-                    if (_regNumberController.text.isNotEmpty &&
-                        _passwordController.text.isNotEmpty) {
-                      // Navigate to student dashboard or handle login
-                      Navigator.pushReplacementNamed(context, '/user');
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Please fill in all fields'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(
-                    "Login",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -227,7 +417,7 @@ class _StudentLoginState extends State<StudentLogin> {
 
   @override
   void dispose() {
-    _regNumberController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'services/firebase_auth_service.dart';
 
 class FacultySignup extends StatefulWidget {
   const FacultySignup({super.key});
@@ -10,8 +11,12 @@ class FacultySignup extends StatefulWidget {
 
 class _FacultySignupState extends State<FacultySignup> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _staffIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+  bool _isLoading = false;
   final List<Map<String, dynamic>> _classSections = [
     {
       'csvFile': null,
@@ -19,6 +24,72 @@ class _FacultySignupState extends State<FacultySignup> {
       'controller': TextEditingController(),
     }
   ];
+
+  Future<void> _handleFacultySignup() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String email = _emailController.text.trim();
+      String password = _passwordController.text;
+      String name = _nameController.text.trim();
+      String staffId = _staffIdController.text.trim();
+
+      // Validate passwords match
+      if (password != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Passwords do not match'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Create Firebase user account
+      print('🔥 Creating Firebase faculty account...');
+      var userCredential = await FirebaseAuthService.signUpWithEmailAndPassword(
+        email: email,
+        password: password,
+        displayName: name,
+      );
+
+      if (userCredential?.user != null) {
+        print(
+            '✅ Firebase faculty account created successfully: ${userCredential!.user!.uid}');
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Faculty account created successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Navigate to faculty dashboard
+        Navigator.pushReplacementNamed(context, '/faculty-dashboard');
+      } else {
+        throw Exception('Failed to create Firebase faculty account');
+      }
+    } catch (e) {
+      print('❌ Error during faculty signup: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +185,51 @@ class _FacultySignupState extends State<FacultySignup> {
 
                     SizedBox(height: 24),
 
+                    // Email field
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Email",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Color(0xFF2c3035), // Secondary color
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: "Enter your email address",
+                              hintStyle: TextStyle(
+                                color: Color(0xFFa2abb3), // Text secondary
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 24),
+
                     // Staff ID field
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,8 +288,7 @@ class _FacultySignupState extends State<FacultySignup> {
                         ),
                         SizedBox(height: 16),
                         ..._classSections
-                            .map((section) => _buildClassSection(section))
-                            ,
+                            .map((section) => _buildClassSection(section)),
                         SizedBox(height: 16),
                         // Add more sections button
                         GestureDetector(
@@ -248,6 +363,51 @@ class _FacultySignupState extends State<FacultySignup> {
                       ],
                     ),
 
+                    SizedBox(height: 24),
+
+                    // Confirm Password field
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Confirm Password",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Color(0xFF2c3035), // Secondary color
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: TextField(
+                            controller: _confirmPasswordController,
+                            obscureText: true,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: "Confirm your password",
+                              hintStyle: TextStyle(
+                                color: Color(0xFFa2abb3), // Text secondary
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
                     SizedBox(height: 32), // Extra space at bottom for scrolling
                   ],
                 ),
@@ -271,31 +431,39 @@ class _FacultySignupState extends State<FacultySignup> {
                           borderRadius: BorderRadius.circular(28),
                         ),
                       ),
-                      onPressed: () {
-                        // Handle signup logic
-                        if (_nameController.text.isNotEmpty &&
-                            _staffIdController.text.isNotEmpty &&
-                            _passwordController.text.isNotEmpty) {
-                          // Navigate to faculty dashboard or handle signup
-                          Navigator.pushReplacementNamed(context, '/admin');
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  Text('Please fill in all required fields'),
-                              backgroundColor: Colors.red,
+                      onPressed: _isLoading ? null : _handleFacultySignup,
+                      child: _isLoading
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF121416)),
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  "Creating Account...",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              "Sign Up",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
                             ),
-                          );
-                        }
-                      },
-                      child: Text(
-                        "Sign Up",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
                     ),
                   ),
                   SizedBox(height: 16),
@@ -489,8 +657,10 @@ class _FacultySignupState extends State<FacultySignup> {
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
     _staffIdController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     for (var section in _classSections) {
       section['controller'].dispose();
     }

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'face_scan_screen.dart';
+import 'services/face_database_service.dart';
+import 'services/firebase_auth_service.dart';
 
 class StudentSignup extends StatefulWidget {
   const StudentSignup({super.key});
@@ -9,8 +12,94 @@ class StudentSignup extends StatefulWidget {
 
 class _StudentSignupState extends State<StudentSignup> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _regNumberController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+  List<double>? _faceEmbedding;
+  bool _isFaceRegistered = false;
+  bool _isLoading = false;
+
+  Future<void> _handleSignup() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String email = _emailController.text.trim();
+      String password = _passwordController.text;
+      String name = _nameController.text.trim();
+      String regNumber = _regNumberController.text.trim();
+
+      // Create Firebase user account
+      print('🔥 Creating Firebase user account...');
+      var userCredential = await FirebaseAuthService.signUpWithEmailAndPassword(
+        email: email,
+        password: password,
+        displayName: name,
+      );
+
+      if (userCredential?.user != null) {
+        print(
+            '✅ Firebase user created successfully: ${userCredential!.user!.uid}');
+
+        // Store additional user data and face embedding locally
+        Map<String, dynamic> userData = {
+          'name': name,
+          'email': email,
+          'registrationNumber': regNumber,
+          'firebaseUid': userCredential.user!.uid,
+          'signupDate': DateTime.now().toIso8601String(),
+        };
+
+        // Store user data and face embedding
+        bool userDataStored =
+            await FaceDatabaseService.storeUserData(regNumber, userData);
+        bool embeddingStored = await FaceDatabaseService.storeFaceEmbedding(
+            regNumber, _faceEmbedding!);
+
+        if (userDataStored && embeddingStored) {
+          print('✅ User registration completed successfully');
+          print('Face embedding dimensions: ${_faceEmbedding!.length}');
+          print('Face embedding preview: ${_faceEmbedding!.take(5).toList()}');
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Registration completed successfully!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Navigate to student dashboard
+          Navigator.pushReplacementNamed(context, '/user');
+        } else {
+          // If local storage fails, delete the Firebase user
+          await userCredential.user!.delete();
+          throw Exception('Failed to save registration data locally');
+        }
+      } else {
+        throw Exception('Failed to create Firebase user account');
+      }
+    } catch (e) {
+      print('❌ Error during signup: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +195,51 @@ class _StudentSignupState extends State<StudentSignup> {
 
                     SizedBox(height: 24),
 
+                    // Email field
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Email",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Color(0xFF2c3035), // Secondary color
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: "Enter your email address",
+                              hintStyle: TextStyle(
+                                color: Color(0xFFa2abb3), // Text secondary
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 24),
+
                     // Registration Number field
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,7 +267,7 @@ class _StudentSignupState extends State<StudentSignup> {
                               fontSize: 16,
                             ),
                             decoration: InputDecoration(
-                              hintText: "e.g., 2023-CS-123",
+                              hintText: "e.g., 2023-CS-12",
                               hintStyle: TextStyle(
                                 color: Color(0xFFa2abb3), // Text secondary
                               ),
@@ -176,17 +310,70 @@ class _StudentSignupState extends State<StudentSignup> {
                               Padding(
                                 padding: EdgeInsets.only(left: 16),
                                 child: Text(
-                                  "Face Scan for quick access",
+                                  _isFaceRegistered
+                                      ? "Face registered successfully ✓"
+                                      : "Face Scan for quick access",
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.white,
+                                    color: _isFaceRegistered
+                                        ? Color(0xFF10b981) // Green for success
+                                        : Colors.white,
                                   ),
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () {
-                                  // Handle face scan functionality
+                                onTap: () async {
+                                  // Navigate to face scan screen
+                                  if (_nameController.text.isNotEmpty &&
+                                      _regNumberController.text.isNotEmpty) {
+                                    final result =
+                                        await Navigator.push<List<double>>(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => FaceScanScreen(
+                                          name: _nameController.text,
+                                          registrationNumber:
+                                              _regNumberController.text,
+                                        ),
+                                      ),
+                                    );
+
+                                    if (result != null) {
+                                      print(
+                                          '✅ Received face embedding from scan: ${result.length} dimensions');
+                                      print(
+                                          '📊 Embedding preview: ${result.take(5).toList()}');
+                                      setState(() {
+                                        _faceEmbedding = result;
+                                        _isFaceRegistered = true;
+                                      });
+                                      print(
+                                          '🎯 Face registration status updated: $_isFaceRegistered');
+
+                                      // Show success message
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Face registration completed successfully!'),
+                                          backgroundColor: Colors.green,
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    } else {
+                                      print(
+                                          '❌ No face embedding received from scan');
+                                    }
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Please enter name and registration number first'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  }
                                 },
                                 child: Container(
                                   padding: EdgeInsets.all(8),
@@ -253,6 +440,51 @@ class _StudentSignupState extends State<StudentSignup> {
                       ],
                     ),
 
+                    SizedBox(height: 24),
+
+                    // Confirm Password field
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Confirm Password",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Color(0xFF2c3035), // Secondary color
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: TextField(
+                            controller: _confirmPasswordController,
+                            obscureText: true,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: "Confirm your password",
+                              hintStyle: TextStyle(
+                                color: Color(0xFFa2abb3), // Text secondary
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
                     SizedBox(height: 32), // Extra space at bottom for scrolling
                   ],
                 ),
@@ -276,31 +508,82 @@ class _StudentSignupState extends State<StudentSignup> {
                           borderRadius: BorderRadius.circular(28),
                         ),
                       ),
-                      onPressed: () {
-                        // Handle signup logic
-                        if (_nameController.text.isNotEmpty &&
-                            _regNumberController.text.isNotEmpty &&
-                            _passwordController.text.isNotEmpty) {
-                          // Navigate to student dashboard or handle signup
-                          Navigator.pushReplacementNamed(context, '/user');
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  Text('Please fill in all required fields'),
-                              backgroundColor: Colors.red,
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              // Handle signup logic
+                              if (_nameController.text.isNotEmpty &&
+                                  _emailController.text.isNotEmpty &&
+                                  _regNumberController.text.isNotEmpty &&
+                                  _passwordController.text.isNotEmpty &&
+                                  _confirmPasswordController.text.isNotEmpty) {
+                                // Check if passwords match
+                                if (_passwordController.text ==
+                                    _confirmPasswordController.text) {
+                                  // Check if face is registered
+                                  if (_isFaceRegistered &&
+                                      _faceEmbedding != null) {
+                                    // Store user data and face embedding in database
+                                    _handleSignup();
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Please complete face registration'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  }
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Passwords do not match'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Please fill in all required fields'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                      child: _isLoading
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF121416)),
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  "Creating Account...",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              "Sign Up",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
                             ),
-                          );
-                        }
-                      },
-                      child: Text(
-                        "Sign Up",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
                     ),
                   ),
                   SizedBox(height: 16),
@@ -343,6 +626,7 @@ class _StudentSignupState extends State<StudentSignup> {
     _nameController.dispose();
     _regNumberController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 }

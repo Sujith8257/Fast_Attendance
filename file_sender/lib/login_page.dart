@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
+import 'services/firebase_auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -10,7 +11,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String _errorMessage = '';
@@ -49,11 +49,9 @@ class _LoginPageState extends State<LoginPage> {
 
       _logger.i('Attempting to sign in with email: ${_emailController.text}');
 
-      // Sign out any existing user first
-      await _auth.signOut();
-
-      // Attempt to sign in
-      final userCredential = await _auth.signInWithEmailAndPassword(
+      // Attempt to sign in using Firebase Auth Service
+      final userCredential =
+          await FirebaseAuthService.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
@@ -61,8 +59,9 @@ class _LoginPageState extends State<LoginPage> {
       _logger.d('Firebase auth response received');
 
       // Check if sign in was successful
-      if (userCredential.user != null) {
-        _logger.i('Successfully signed in user: ${userCredential.user!.email}');
+      if (userCredential?.user != null) {
+        _logger
+            .i('Successfully signed in user: ${userCredential!.user!.email}');
 
         if (!context.mounted) return;
 
