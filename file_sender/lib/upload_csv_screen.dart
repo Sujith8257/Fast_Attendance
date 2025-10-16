@@ -250,7 +250,7 @@ class _UploadCSVScreenState extends State<UploadCSVScreen>
         elevation: 0,
         automaticallyImplyLeading: false,
         title: Text(
-          "KARE FAST · ADMIN",
+          "NetMark · ADMIN",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             letterSpacing: -0.5,
