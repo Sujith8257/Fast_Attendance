@@ -12,7 +12,8 @@ class UploadCSVScreen extends StatefulWidget {
   _UploadCSVScreenState createState() => _UploadCSVScreenState();
 }
 
-class _UploadCSVScreenState extends State<UploadCSVScreen> {
+class _UploadCSVScreenState extends State<UploadCSVScreen>
+    with TickerProviderStateMixin {
   String? _filePath;
   bool _isUploading = false;
   String _serverResponse = "";
@@ -22,17 +23,54 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
   Timer? _statsTimer;
   final _urlController = TextEditingController();
   String _registrationNumber = "";
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+  bool _isRefreshing = false;
+  DateTime? _lastUpdated;
 
   @override
   void initState() {
     super.initState();
     _fetchStats();
-    // Refresh stats every 10 seconds for live updates
+    // Refresh stats every 3 seconds for live updates
     _statsTimer =
-        Timer.periodic(Duration(seconds: 10), (timer) => _fetchStats());
+        Timer.periodic(Duration(seconds: 3), (timer) => _fetchStats());
+
+    // Initialize pulse animation for live indicator
+    _pulseController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.2,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+    _pulseController.repeat(reverse: true);
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inSeconds < 60) {
+      return '${difference.inSeconds}s ago';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${dateTime.day}/${dateTime.month} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   Future<void> _fetchStats() async {
+    setState(() {
+      _isRefreshing = true;
+    });
+
     try {
       final response = await http.get(
         Uri.parse('${Config.serverUrl}/attendance_stats'),
@@ -44,11 +82,16 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
           _totalStudents = stats['total'] ?? 0;
           _presentStudents = stats['present'] ?? 0;
           _absentStudents = stats['absent'] ?? 0;
+          _isRefreshing = false;
+          _lastUpdated = DateTime.now();
         });
         print(
             '📊 Stats loaded - Total: $_totalStudents, Present: $_presentStudents, Absent: $_absentStudents');
       }
     } catch (e) {
+      setState(() {
+        _isRefreshing = false;
+      });
       print('Error fetching stats: $e');
     }
   }
@@ -216,6 +259,21 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
         ),
         actions: [
           IconButton(
+            icon: _isRefreshing
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xFFd1d5db)),
+                    ),
+                  )
+                : Icon(Icons.refresh_rounded, color: Color(0xFFd1d5db)),
+            onPressed: _isRefreshing ? null : _fetchStats,
+            tooltip: _isRefreshing ? 'Refreshing...' : 'Refresh Statistics',
+          ),
+          IconButton(
             icon: Icon(Icons.settings, color: Color(0xFFd1d5db)),
             onPressed: _showServerUrlDialog,
             tooltip: 'Configure Server URL',
@@ -249,16 +307,90 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
                 ),
                 child: Column(
                   children: [
-                    Text(
-                      "Attendance Statistics",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFf9fafb),
-                        letterSpacing: -0.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Attendance Statistics",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFf9fafb),
+                            letterSpacing: -0.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(width: 12),
+                        Container(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _isRefreshing
+                                ? Color(0xFF3b82f6).withOpacity(0.2)
+                                : Color(0xFF10b981).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _isRefreshing
+                                  ? Color(0xFF3b82f6).withOpacity(0.5)
+                                  : Color(0xFF10b981).withOpacity(0.5),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_isRefreshing)
+                                SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF3b82f6)),
+                                  ),
+                                )
+                              else
+                                AnimatedBuilder(
+                                  animation: _pulseAnimation,
+                                  builder: (context, child) {
+                                    return Transform.scale(
+                                      scale: _pulseAnimation.value,
+                                      child: Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: Color(0xFF10b981),
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Color(0xFF10b981)
+                                                  .withOpacity(0.5),
+                                              blurRadius: 4,
+                                              spreadRadius: 1,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              SizedBox(width: 6),
+                              Text(
+                                _isRefreshing ? "UPDATING" : "LIVE",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: _isRefreshing
+                                      ? Color(0xFF3b82f6)
+                                      : Color(0xFF10b981),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(height: 24),
                     Row(
@@ -315,6 +447,50 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
                         ),
                       ],
                     ),
+                    if (_lastUpdated != null) ...[
+                      SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Color(0xFF374151).withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              "Last updated: ${_formatTime(_lastUpdated!)}",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF9ca3af),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Color(0xFF10b981).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Color(0xFF10b981).withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              "Auto-refresh: 3s",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF10b981),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -700,6 +876,7 @@ class _UploadCSVScreenState extends State<UploadCSVScreen> {
   void dispose() {
     _urlController.dispose();
     _statsTimer?.cancel();
+    _pulseController.dispose();
     super.dispose();
   }
 }

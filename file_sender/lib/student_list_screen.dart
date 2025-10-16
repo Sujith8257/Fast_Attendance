@@ -357,7 +357,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
                                       border: Border.all(
                                         color: student['isPresent']
                                             ? Color(0xFF10b981).withOpacity(0.3)
-                                            : Color(0xFFef4444).withOpacity(0.3),
+                                            : Color(0xFFef4444)
+                                                .withOpacity(0.3),
                                         width: 1,
                                       ),
                                     ),
@@ -371,14 +372,20 @@ class _StudentListScreenState extends State<StudentListScreen> {
                                             begin: Alignment.topLeft,
                                             end: Alignment.bottomRight,
                                             colors: [
-                                              _getColorForInitial(student['initial']),
-                                              _getColorForInitial(student['initial']).withOpacity(0.8),
+                                              _getColorForInitial(
+                                                  student['initial']),
+                                              _getColorForInitial(
+                                                      student['initial'])
+                                                  .withOpacity(0.8),
                                             ],
                                           ),
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: _getColorForInitial(student['initial']).withOpacity(0.3),
+                                              color: _getColorForInitial(
+                                                      student['initial'])
+                                                  .withOpacity(0.3),
                                               blurRadius: 8,
                                               offset: Offset(0, 4),
                                             ),
@@ -416,9 +423,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
                                         padding: EdgeInsets.all(8),
                                         decoration: BoxDecoration(
                                           color: student['isPresent']
-                                              ? Color(0xFF10b981).withOpacity(0.1)
-                                              : Color(0xFFef4444).withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(8),
+                                              ? Color(0xFF10b981)
+                                                  .withOpacity(0.1)
+                                              : Color(0xFFef4444)
+                                                  .withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
                                         child: Icon(
                                           student['isPresent']
@@ -435,7 +445,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
                                 },
                               ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

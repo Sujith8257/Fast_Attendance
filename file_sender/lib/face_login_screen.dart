@@ -40,7 +40,8 @@ class _FaceLoginScreenState extends State<FaceLoginScreen> {
         status = await Permission.camera.request();
         if (!status.isGranted) {
           setState(() {
-            _statusMessage = "Camera permission denied. Please enable camera access in settings.";
+            _statusMessage =
+                "Camera permission denied. Please enable camera access in settings.";
           });
           return;
         }
@@ -94,7 +95,8 @@ class _FaceLoginScreenState extends State<FaceLoginScreen> {
       });
 
       // Debug: Print which camera is being used
-      print('📷 Using camera: ${frontCamera.name} (${frontCamera.lensDirection})');
+      print(
+          '📷 Using camera: ${frontCamera.name} (${frontCamera.lensDirection})');
     } catch (e) {
       setState(() {
         _statusMessage = "Error initializing camera: $e";
@@ -124,7 +126,8 @@ class _FaceLoginScreenState extends State<FaceLoginScreen> {
       });
 
       // Find best match from stored embeddings
-      String? matchedUser = await FaceAuthService.findBestMatch(imageBytes, widget.storedEmbeddings);
+      String? matchedUser = await FaceAuthService.findBestMatch(
+          imageBytes, widget.storedEmbeddings);
 
       if (matchedUser != null) {
         setState(() {
@@ -204,6 +207,10 @@ class _FaceLoginScreenState extends State<FaceLoginScreen> {
               ),
             ),
             onPressed: () {
+              print('🔄 Continue button pressed, returning userId: $userId');
+              // Close the success dialog first
+              Navigator.pop(context);
+              // Then close the main face login screen and return the userId
               Navigator.pop(context, userId);
             },
             child: Text("Continue"),
@@ -215,189 +222,207 @@ class _FaceLoginScreenState extends State<FaceLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFF111827),
-      appBar: AppBar(
-        backgroundColor: Color(0xFF1f2937),
-        elevation: 0,
-        title: Text(
-          "Face Login",
-          style: TextStyle(
-            color: Color(0xFFf9fafb),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Color(0xFFf9fafb)),
-          onPressed: () => Navigator.pop(context),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xFF111827),
+        borderRadius: BorderRadius.circular(20),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Camera preview
-            Expanded(
-              flex: 3,
-              child: Container(
-                margin: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: _isProcessing ? Color(0xFF10b981) : Color(0xFF374151),
-                    width: 2,
+      child: Column(
+        children: [
+          // Header with close button
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Color(0xFF1f2937),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.face,
+                  color: Color(0xFF818cf8),
+                  size: 24,
+                ),
+                SizedBox(width: 12),
+                Text(
+                  "Face Login",
+                  style: TextStyle(
+                    color: Color(0xFFf9fafb),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
                   ),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: _isInitialized && _cameraController != null
-                      ? CameraPreview(_cameraController!)
-                      : Container(
-                          color: Color(0xFF1f2937),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.camera_alt,
-                                  color: Color(0xFF6b7280),
-                                  size: 64,
+                Spacer(),
+                IconButton(
+                  icon: Icon(Icons.close, color: Color(0xFF9ca3af)),
+                  onPressed: () => Navigator.pop(context),
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+          ),
+          // Camera preview
+          Expanded(
+            flex: 3,
+            child: Container(
+              margin: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _isProcessing ? Color(0xFF10b981) : Color(0xFF374151),
+                  width: 2,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: _isInitialized && _cameraController != null
+                    ? CameraPreview(_cameraController!)
+                    : Container(
+                        color: Color(0xFF1f2937),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.camera_alt,
+                                color: Color(0xFF6b7280),
+                                size: 64,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                _statusMessage,
+                                style: TextStyle(
+                                  color: Color(0xFF9ca3af),
+                                  fontSize: 16,
                                 ),
-                                SizedBox(height: 16),
-                                Text(
-                                  _statusMessage,
-                                  style: TextStyle(
-                                    color: Color(0xFF9ca3af),
-                                    fontSize: 16,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         ),
-                ),
+                      ),
               ),
             ),
+          ),
 
-            // Instructions and status - made scrollable
-            Expanded(
-              flex: 1,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    Text(
-                      "Instructions:",
-                      style: TextStyle(
-                        color: Color(0xFFf9fafb),
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      "• Position your face in the center of the frame\n• Ensure good lighting\n• Look directly at the front camera\n• Keep your face still\n• Make sure your face is well-lit",
-                      style: TextStyle(
-                        color: Color(0xFFd1d5db),
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      _statusMessage,
-                      style: TextStyle(
-                        color: _isProcessing
-                            ? Color(0xFF10b981)
-                            : Color(0xFF9ca3af),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 16), // Extra space for scrolling
-                  ],
-                ),
-              ),
-            ),
-
-            // Capture button
-            Padding(
-              padding: EdgeInsets.fromLTRB(24, 8, 24, 24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isProcessing || !_isInitialized
-                        ? Color(0xFF6b7280)
-                        : Color(0xFF818cf8),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+          // Instructions and status - made scrollable
+          Expanded(
+            flex: 1,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  Text(
+                    "Instructions:",
+                    style: TextStyle(
+                      color: Color(0xFFf9fafb),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  onPressed: _isProcessing
-                      ? null
-                      : (!_isInitialized &&
-                              _statusMessage.contains("permission"))
-                          ? () async {
-                              await _initializeCamera();
-                            }
-                          : _authenticateFace,
-                  child: _isProcessing
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Text("Authenticating..."),
-                          ],
-                        )
-                      : (!_isInitialized &&
-                              _statusMessage.contains("permission"))
-                          ? Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.refresh),
-                                SizedBox(width: 8),
-                                Text(
-                                  "Retry Camera",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.face),
-                                SizedBox(width: 8),
-                                Text(
-                                  "Authenticate Face",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                ),
+                  SizedBox(height: 8),
+                  Text(
+                    "• Position your face in the center of the frame\n• Ensure good lighting\n• Look directly at the front camera\n• Keep your face still\n• Make sure your face is well-lit",
+                    style: TextStyle(
+                      color: Color(0xFFd1d5db),
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    _statusMessage,
+                    style: TextStyle(
+                      color:
+                          _isProcessing ? Color(0xFF10b981) : Color(0xFF9ca3af),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16), // Extra space for scrolling
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+
+          // Capture button
+          Padding(
+            padding: EdgeInsets.fromLTRB(24, 8, 24, 24),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isProcessing || !_isInitialized
+                      ? Color(0xFF6b7280)
+                      : Color(0xFF818cf8),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _isProcessing
+                    ? null
+                    : (!_isInitialized && _statusMessage.contains("permission"))
+                        ? () async {
+                            await _initializeCamera();
+                          }
+                        : _authenticateFace,
+                child: _isProcessing
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Text("Authenticating..."),
+                        ],
+                      )
+                    : (!_isInitialized && _statusMessage.contains("permission"))
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.refresh),
+                              SizedBox(width: 8),
+                              Text(
+                                "Retry Camera",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.face),
+                              SizedBox(width: 8),
+                              Text(
+                                "Authenticate Face",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -118,6 +118,35 @@ class _StudentLoginState extends State<StudentLogin> {
     }
   }
 
+  Future<String?> _showFaceLoginModal(
+      Map<String, List<double>> storedEmbeddings) async {
+    return await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: BoxDecoration(
+            color: Color(0xFF1f2937),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: FaceLoginScreen(
+            storedEmbeddings: storedEmbeddings,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleFaceLogin() async {
     try {
       // Get all students with face data from Firestore
@@ -144,17 +173,15 @@ class _StudentLoginState extends State<StudentLogin> {
         }
       }
 
-      // Navigate to face login screen
-      final String? authenticatedUserId = await Navigator.push<String>(
-        context,
-        MaterialPageRoute(
-          builder: (context) => FaceLoginScreen(
-            storedEmbeddings: storedEmbeddings,
-          ),
-        ),
-      );
+      // Show face login as a floating modal dialog
+      final String? authenticatedUserId =
+          await _showFaceLoginModal(storedEmbeddings);
 
-      if (authenticatedUserId != null) {
+      print(
+          '🔄 Received authenticatedUserId from face login: $authenticatedUserId');
+
+      if (authenticatedUserId != null && authenticatedUserId.isNotEmpty) {
+        print('✅ Processing face login for user: $authenticatedUserId');
         // Find the student data
         var studentData = studentsWithFaceData.firstWhere(
           (student) => student['id'] == authenticatedUserId,
@@ -162,6 +189,7 @@ class _StudentLoginState extends State<StudentLogin> {
         );
 
         if (studentData.isNotEmpty) {
+          print('✅ Student data found: ${studentData['profile']['name']}');
           // Update last login time
           await FirestoreService.updateLastLogin(authenticatedUserId);
 
@@ -180,8 +208,19 @@ class _StudentLoginState extends State<StudentLogin> {
           );
 
           // Navigate to user dashboard
+          print('🔄 Navigating to user dashboard...');
           Navigator.pushReplacementNamed(context, '/user');
+        } else {
+          print('❌ Student data not found for user: $authenticatedUserId');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Student data not found. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
+      } else {
+        print('❌ No authenticated user ID received from face login');
       }
     } catch (e) {
       print('❌ Face login error: $e');

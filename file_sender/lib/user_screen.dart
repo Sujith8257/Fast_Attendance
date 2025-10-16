@@ -103,12 +103,14 @@ class _UserScreenState extends State<UserScreen>
 
     try {
       // Fetch face embeddings mapped to registration numbers
-      final embeddingsByRegNumber = await FirestoreService.getFaceEmbeddingsByRegNumber();
+      final embeddingsByRegNumber =
+          await FirestoreService.getFaceEmbeddingsByRegNumber();
 
       if (embeddingsByRegNumber.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("No face data available. Please contact administrator."),
+            content:
+                Text("No face data available. Please contact administrator."),
             backgroundColor: Colors.orange,
           ),
         );
@@ -121,12 +123,31 @@ class _UserScreenState extends State<UserScreen>
       if (result != null && result is String) {
         // Face verification successful, check if the matched registration number matches the entered one
         if (result == uniqueId) {
-          print('✅ Face verification successful for registration number: $result');
+          print(
+              '✅ Face verification successful for registration number: $result');
           await uploadUniqueId(uniqueId);
+          // Show success message and reset form
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  "✅ Attendance marked successfully! Welcome back, $_userName!"),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+
+          // Reset the form to allow for new attendance entries
+          setState(() {
+            _userFound = false;
+            _userName = "";
+            _uniqueIdResponse = "";
+            _uniqueIdController.clear();
+          });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Face verification failed: Face does not match the entered registration number."),
+              content: Text(
+                  "Face verification failed: Face does not match the entered registration number."),
               backgroundColor: Colors.red,
             ),
           );
@@ -167,11 +188,8 @@ class _UserScreenState extends State<UserScreen>
 
       if (response.statusCode == 200) {
         setState(() => _uniqueIdResponse = jsonResponse['message']);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(jsonResponse['message'])),
-        );
-        // Refresh student list after marking attendance
-        // _fetchStudents();
+        // Don't show snackbar here as we'll show a better one after face verification
+        print('✅ Attendance uploaded successfully: ${jsonResponse['message']}');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -278,7 +296,8 @@ class _UserScreenState extends State<UserScreen>
     );
   }
 
-  Future<String?> _showFaceVerificationDialog(Map<String, List<double>> storedEmbeddings) async {
+  Future<String?> _showFaceVerificationDialog(
+      Map<String, List<double>> storedEmbeddings) async {
     return await showDialog<String>(
       context: context,
       barrierDismissible: false,
@@ -319,7 +338,8 @@ class _UserScreenState extends State<UserScreen>
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: Color(0xFF1f2937),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
             'Logout',
             style: TextStyle(
@@ -709,8 +729,9 @@ class _UserScreenState extends State<UserScreen>
                                 ),
                                 onPressed: _isLoading
                                     ? null
-                                    : () => _handleFaceVerificationAndAttendance(
-                                        _uniqueIdController.text.trim()),
+                                    : () =>
+                                        _handleFaceVerificationAndAttendance(
+                                            _uniqueIdController.text.trim()),
                                 child: _isLoading
                                     ? SizedBox(
                                         height: 20,

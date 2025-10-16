@@ -21,9 +21,11 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('Firebase initialized successfully');
+    print('✅ Firebase initialized successfully');
   } catch (e) {
-    print('Error initializing Firebase: $e');
+    print('❌ Error initializing Firebase: $e');
+    // Continue app initialization even if Firebase fails
+    // This allows the app to work with offline functionality
   }
 
   runApp(NetMarkApp());
@@ -83,7 +85,8 @@ class NetMarkApp extends StatelessWidget {
         '/attendance': (context) => AttendanceScreen(),
         '/user': (context) => UserScreen(),
         '/admin': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final args = ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>?;
           return StudentListScreen(
             showPresent: args?['showPresent'] ?? false,
             showAbsent: args?['showAbsent'] ?? false,

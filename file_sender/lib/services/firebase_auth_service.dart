@@ -1,9 +1,36 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:logger/logger.dart';
 
 class FirebaseAuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final Logger _logger = Logger();
+
+  // Check if Firebase is available
+  static bool get isFirebaseAvailable {
+    try {
+      return Firebase.apps.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Simple offline authentication fallback
+  static Future<bool> offlineSignIn({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      _logger.i('Attempting offline authentication for: $email');
+      // This is a simple fallback - in a real app, you'd want to store
+      // encrypted credentials locally and verify them
+      _logger.w('Offline authentication not implemented - Firebase required');
+      return false;
+    } catch (e) {
+      _logger.e('Offline authentication failed: $e');
+      return false;
+    }
+  }
 
   // Get current user
   static User? get currentUser => _auth.currentUser;
@@ -17,6 +44,11 @@ class FirebaseAuthService {
     required String password,
     String? displayName,
   }) async {
+    if (!isFirebaseAvailable) {
+      throw Exception(
+          'Unable to connect to authentication service. Please check your internet connection and try again.');
+    }
+
     try {
       _logger.i('Starting sign up process for: $email');
 
@@ -38,6 +70,12 @@ class FirebaseAuthService {
       throw _handleAuthException(e);
     } catch (e) {
       _logger.e('Unexpected error during sign up: $e');
+      // Handle Google Play Services errors gracefully
+      if (e.toString().contains('GoogleApiManager') ||
+          e.toString().contains('SecurityException')) {
+        throw Exception(
+            'Google Play Services error. Please check your internet connection and try again.');
+      }
       throw Exception('An unexpected error occurred during sign up');
     }
   }
@@ -47,6 +85,11 @@ class FirebaseAuthService {
     required String email,
     required String password,
   }) async {
+    if (!isFirebaseAvailable) {
+      throw Exception(
+          'Unable to connect to authentication service. Please check your internet connection and try again.');
+    }
+
     try {
       _logger.i('Starting sign in process for: $email');
 
@@ -62,6 +105,12 @@ class FirebaseAuthService {
       throw _handleAuthException(e);
     } catch (e) {
       _logger.e('Unexpected error during sign in: $e');
+      // Handle Google Play Services errors gracefully
+      if (e.toString().contains('GoogleApiManager') ||
+          e.toString().contains('SecurityException')) {
+        throw Exception(
+            'Google Play Services error. Please check your internet connection and try again.');
+      }
       throw Exception('An unexpected error occurred during sign in');
     }
   }
