@@ -1,11 +1,10 @@
-import 'dart:typed_data';
 import 'dart:math' as math;
-import 'package:tflite_flutter/tflite_flutter.dart';
+import 'tflite_interpreter.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter/foundation.dart';
 
 class FaceRegistrationService {
-  static Interpreter? _interpreter;
+  static TfliteInterpreter? _interpreter;
   static bool _isModelLoaded = false;
   static const int _embeddingSize = 128;
   static const int _inputSize = 112;
@@ -16,8 +15,8 @@ class FaceRegistrationService {
       if (_isModelLoaded) return true;
 
       // Load the model from assets
-      _interpreter =
-          await Interpreter.fromAsset('assets/models/output_model.tflite');
+      _interpreter = TfliteInterpreterIo();
+      await _interpreter!.loadModel('assets/models/output_model.tflite');
       _isModelLoaded = true;
       print('✅ MobileFaceNet model loaded successfully');
       return true;

@@ -1,10 +1,9 @@
 import 'dart:typed_data';
-import 'package:tflite_flutter/tflite_flutter.dart';
-import 'package:image/image.dart' as img;
+import 'tflite_interpreter.dart';
 import 'face_registration_service.dart';
 
 class FaceAuthService {
-  static Interpreter? _interpreter;
+  static TfliteInterpreter? _interpreter;
   static bool _isModelLoaded = false;
   static const double _similarityThreshold = 0.6; // Adjust based on testing
 
@@ -14,7 +13,8 @@ class FaceAuthService {
       if (_isModelLoaded) return true;
 
       // Use the same model as registration
-      _interpreter = await Interpreter.fromAsset('assets/models/output_model.tflite');
+      _interpreter = TfliteInterpreterIo();
+      await _interpreter!.loadModel('assets/models/output_model.tflite');
       _isModelLoaded = true;
       print('✅ Face authentication model loaded successfully');
       return true;
@@ -36,31 +36,36 @@ class FaceAuthService {
       }
 
       // Generate embedding from current image
-      List<double>? currentEmbedding = await FaceRegistrationService.generateFaceEmbedding(imageBytes);
-      
-      if (currentEmbedding == null || !FaceRegistrationService.isValidEmbedding(currentEmbedding)) {
+      List<double>? currentEmbedding =
+          await FaceRegistrationService.generateFaceEmbedding(imageBytes);
+
+      if (currentEmbedding == null ||
+          !FaceRegistrationService.isValidEmbedding(currentEmbedding)) {
         print('❌ Failed to generate valid embedding for authentication');
         return false;
       }
 
       // Normalize both embeddings
-      List<double> normalizedCurrent = FaceRegistrationService.normalizeEmbedding(currentEmbedding);
-      List<double> normalizedStored = FaceRegistrationService.normalizeEmbedding(storedEmbedding);
+      List<double> normalizedCurrent =
+          FaceRegistrationService.normalizeEmbedding(currentEmbedding);
+      List<double> normalizedStored =
+          FaceRegistrationService.normalizeEmbedding(storedEmbedding);
 
       // Calculate similarity
-      double similarity = FaceRegistrationService.calculateSimilarity(normalizedCurrent, normalizedStored);
-      
+      double similarity = FaceRegistrationService.calculateSimilarity(
+          normalizedCurrent, normalizedStored);
+
       print('🔍 Authentication similarity: ${similarity.toStringAsFixed(3)}');
       print('🎯 Threshold: $_similarityThreshold');
-      
+
       bool isAuthenticated = similarity >= _similarityThreshold;
-      
+
       if (isAuthenticated) {
         print('✅ Face authentication successful');
       } else {
         print('❌ Face authentication failed - similarity too low');
       }
-      
+
       return isAuthenticated;
     } catch (e) {
       print('❌ Error during face authentication: $e');
@@ -80,28 +85,33 @@ class FaceAuthService {
       }
 
       // Generate embedding from current image
-      List<double>? currentEmbedding = await FaceRegistrationService.generateFaceEmbedding(imageBytes);
-      
-      if (currentEmbedding == null || !FaceRegistrationService.isValidEmbedding(currentEmbedding)) {
+      List<double>? currentEmbedding =
+          await FaceRegistrationService.generateFaceEmbedding(imageBytes);
+
+      if (currentEmbedding == null ||
+          !FaceRegistrationService.isValidEmbedding(currentEmbedding)) {
         print('❌ Failed to generate valid embedding for batch authentication');
         return {};
       }
 
       // Normalize current embedding
-      List<double> normalizedCurrent = FaceRegistrationService.normalizeEmbedding(currentEmbedding);
+      List<double> normalizedCurrent =
+          FaceRegistrationService.normalizeEmbedding(currentEmbedding);
 
       Map<String, double> similarities = {};
-      
+
       for (String userId in storedEmbeddings.keys) {
         List<double> storedEmbedding = storedEmbeddings[userId]!;
-        List<double> normalizedStored = FaceRegistrationService.normalizeEmbedding(storedEmbedding);
-        
-        double similarity = FaceRegistrationService.calculateSimilarity(normalizedCurrent, normalizedStored);
+        List<double> normalizedStored =
+            FaceRegistrationService.normalizeEmbedding(storedEmbedding);
+
+        double similarity = FaceRegistrationService.calculateSimilarity(
+            normalizedCurrent, normalizedStored);
         similarities[userId] = similarity;
-        
+
         print('🔍 Similarity with $userId: ${similarity.toStringAsFixed(3)}');
       }
-      
+
       return similarities;
     } catch (e) {
       print('❌ Error during batch face authentication: $e');
@@ -115,30 +125,33 @@ class FaceAuthService {
     Map<String, List<double>> storedEmbeddings,
   ) async {
     try {
-      Map<String, double> similarities = await authenticateAgainstMultiple(imageBytes, storedEmbeddings);
-      
+      Map<String, double> similarities =
+          await authenticateAgainstMultiple(imageBytes, storedEmbeddings);
+
       if (similarities.isEmpty) {
         return null;
       }
-      
+
       // Find the user with highest similarity
       String? bestMatch;
       double highestSimilarity = 0.0;
-      
+
       for (String userId in similarities.keys) {
         double similarity = similarities[userId]!;
-        if (similarity > highestSimilarity && similarity >= _similarityThreshold) {
+        if (similarity > highestSimilarity &&
+            similarity >= _similarityThreshold) {
           highestSimilarity = similarity;
           bestMatch = userId;
         }
       }
-      
+
       if (bestMatch != null) {
-        print('✅ Best match found: $bestMatch with similarity ${highestSimilarity.toStringAsFixed(3)}');
+        print(
+            '✅ Best match found: $bestMatch with similarity ${highestSimilarity.toStringAsFixed(3)}');
       } else {
         print('❌ No match found above threshold');
       }
-      
+
       return bestMatch;
     } catch (e) {
       print('❌ Error finding best match: $e');
