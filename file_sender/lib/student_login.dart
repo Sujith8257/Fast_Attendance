@@ -50,7 +50,7 @@ class _StudentLoginState extends State<StudentLogin> {
 
         // Get student data from Firestore
         var studentData = await FirestoreService.getStudentByFirebaseUid(
-            userCredential!.user!.uid);
+            userCredential.user!.uid);
 
         if (studentData != null) {
           // Update last login time

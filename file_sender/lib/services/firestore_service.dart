@@ -64,7 +64,7 @@ class FirestoreService {
           await _db.collection(_studentsCollection).doc(documentId).get();
       if (existingDoc.exists) {
         // If document exists, append registration number to make it unique
-        documentId = '${documentId}_${registrationNumber}';
+        documentId = '${documentId}_$registrationNumber';
       }
 
       final studentRef = _db.collection(_studentsCollection).doc(documentId);

@@ -120,7 +120,7 @@ class _UserScreenState extends State<UserScreen>
       // Show face verification in a modal dialog
       final result = await _showFaceVerificationDialog(embeddingsByRegNumber);
 
-      if (result != null && result is String) {
+      if (result != null) {
         // Face verification successful, check if the matched registration number matches the entered one
         if (result == uniqueId) {
           print(
